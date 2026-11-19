@@ -1,318 +1,206 @@
-```html
 <!DOCTYPE html>
 <html lang="id">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sistem Store & Inventaris Bulanan Mesin</title>
-    <!-- Tailwind CSS -->
-    <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Google Fonts: Inter -->
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-    <!-- Lucide Icons -->
-    <script src="https://unpkg.com/lucide@latest"></script>
-    <!-- SheetJS (XLSX) untuk Ekspor Laporan Excel -->
-    <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
-    <!-- HTML5-QRCode untuk Scan Barcode & QR Code via Kamera HP -->
-    <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+    <title>MarineSync Store SaaS - Inventory Kapal</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- SheetJS (XLSX) untuk Excel Export -->
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
     <style>
-        body {
-            font-family: 'Inter', sans-serif;
-            background-color: #f8fafc;
-            color: #0f172a;
+        :root {
+            --primary-color: #1e3a8a;
+            --accent-color: #3b82f6;
         }
-        /* Kustomisasi Scrollbar */
-        ::-webkit-scrollbar {
-            width: 6px;
-            height: 6px;
-        }
-        ::-webkit-scrollbar-track {
-            background: #f1f5f9;
-        }
-        ::-webkit-scrollbar-thumb {
-            background: #cbd5e1;
-            border-radius: 9999px;
-        }
-        ::-webkit-scrollbar-thumb:hover {
-            background: #94a3b8;
-        }
-        /* Animasi Modal & Toast */
-        @keyframes slideUp {
-            from { transform: translateY(20px); opacity: 0; }
-            to { transform: translateY(0); opacity: 1; }
-        }
-        .animate-slide-up {
-            animation: slideUp 0.25s ease-out forwards;
-        }
-        #qr-reader video {
-            border-radius: 0.75rem;
-            object-fit: cover;
-        }
+        body { background-color: #f8fafc; color: #1e293b; font-family: system-ui, -apple-system, sans-serif; }
+        .theme-bg { background-color: var(--primary-color); }
+        .theme-text { color: var(--primary-color); }
+        .theme-border { border-color: var(--primary-color); }
+        .accent-bg { background-color: var(--accent-color); }
     </style>
 </head>
 <body class="min-h-screen flex flex-col">
 
-    <!-- Header / Navbar -->
-    <header class="bg-slate-900 text-white sticky top-0 z-30 shadow-md">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
-            <div class="flex items-center gap-3">
-                <div class="bg-blue-600 p-2 rounded-xl shadow-inner">
-                    <i data-lucide="cpu" class="w-6 h-6 text-white"></i>
-                </div>
-                <div>
-                    <h1 class="font-bold text-base sm:text-lg leading-tight tracking-tight">Store Mesin & Alat</h1>
-                    <p class="text-xs text-slate-400">Inventaris & Laporan Bulanan</p>
-                </div>
+    <!-- ================= 1. HALAMAN LOGIN GOOGLE ================= -->
+    <div id="loginPage" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/80 backdrop-blur-sm p-4">
+        <div class="bg-white w-full max-w-md rounded-2xl shadow-2xl p-8 border border-slate-100 text-center">
+            <div class="w-16 h-16 bg-blue-50 rounded-2xl flex items-center justify-center mx-auto mb-4 text-blue-600 text-3xl shadow-inner">
+                <i class="fa-solid fa-ship"></i>
             </div>
-            <div class="flex items-center gap-2">
-                <button onclick="openInputModal()" class="bg-blue-600 hover:bg-blue-500 active:bg-blue-700 text-white text-sm font-semibold px-3.5 py-2.5 rounded-xl flex items-center gap-2 shadow-sm transition-all">
-                    <i data-lucide="camera" class="w-4 h-4"></i>
-                    <span class="hidden sm:inline">Input Barang / Scan</span>
-                    <span class="sm:hidden">Input</span>
-                </button>
-            </div>
-        </div>
-    </header>
-
-    <!-- Konten Utama -->
-    <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
-
-        <!-- Filter Periode Bulanan & Tombol Ekspor Excel -->
-        <section class="bg-white p-4 sm:p-5 rounded-2xl shadow-sm border border-slate-200/80 flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-            <div class="flex flex-col sm:flex-row sm:items-center gap-3">
-                <div class="flex items-center gap-2 text-slate-700 font-semibold text-sm">
-                    <i data-lucide="calendar" class="w-4 h-4 text-blue-600"></i>
-                    <span>Periode Laporan:</span>
-                </div>
-                <div class="grid grid-cols-2 sm:flex items-center gap-2">
-                    <select id="filterBulan" onchange="renderDashboard()" class="bg-slate-50 border border-slate-300 text-slate-800 text-sm rounded-xl focus:ring-blue-500 focus:border-blue-500 block w-full sm:w-40 p-2.5 font-medium">
-                        <option value="01">Januari</option>
-                        <option value="02">Februari</option>
-                        <option value="03">Maret</option>
-                        <option value="04">April</option>
-                        <option value="05">Mei</option>
-                        <option value="06">Juni</option>
-                        <option value="07">Juli</option>
-                        <option value="08">Agustus</option>
-                        <option value="09">September</option>
-                        <option value="10">Oktober</option>
-                        <option value="11">November</option>
-                        <option value="12">Desember</option>
-                        <option value="ALL">Semua Bulan</option>
-                    </select>
-                    <select id="filterTahun" onchange="renderDashboard()" class="bg-slate-50 border border-slate-300 text-slate-800 text-sm rounded-xl focus:ring-blue-500 focus:border-blue-500 block w-full sm:w-28 p-2.5 font-medium">
-                        <!-- Diisi otomatis via JS -->
-                    </select>
-                </div>
-            </div>
-
-            <div class="flex flex-wrap items-center gap-2.5">
-                <button onclick="resetDemoData()" class="w-full sm:w-auto bg-slate-100 hover:bg-slate-200 text-slate-700 text-sm font-semibold px-3.5 py-2.5 rounded-xl flex items-center justify-center gap-2 border border-slate-300 transition-all" title="Muat ulang data contoh mesin">
-                    <i data-lucide="rotate-ccw" class="w-4 h-4"></i>
-                    <span>Reset Contoh</span>
-                </button>
-                <button onclick="exportToExcel()" class="w-full sm:w-auto bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 text-white text-sm font-semibold px-4 py-2.5 rounded-xl flex items-center justify-center gap-2 shadow-sm transition-all">
-                    <i data-lucide="file-spreadsheet" class="w-4 h-4"></i>
-                    <span>Ekspor Laporan Excel (.xlsx)</span>
-                </button>
-            </div>
-        </section>
-
-        <!-- Ringkasan Statistik Bulanan (4 Kartu Metrik Unit) -->
-        <section class="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-            <!-- 1. Total Jenis Mesin -->
-            <div class="bg-white p-4 sm:p-5 rounded-2xl shadow-sm border border-slate-200/80 flex items-center gap-3.5">
-                <div class="bg-slate-100 text-slate-700 p-3 rounded-2xl shrink-0">
-                    <i data-lucide="layers" class="w-6 h-6"></i>
-                </div>
-                <div class="min-w-0">
-                    <p class="text-[11px] sm:text-xs font-semibold text-slate-500 uppercase tracking-wider truncate">Total Jenis Mesin</p>
-                    <h2 id="statJenis" class="text-xl sm:text-2xl font-extrabold text-slate-900 mt-0.5">0</h2>
-                    <p class="text-[11px] text-slate-400 mt-0.5 truncate">Item terdaftar</p>
-                </div>
-            </div>
-
-            <!-- 2. Total Unit Input (Masuk) -->
-            <div class="bg-white p-4 sm:p-5 rounded-2xl shadow-sm border border-slate-200/80 flex items-center gap-3.5">
-                <div class="bg-blue-50 text-blue-600 p-3 rounded-2xl shrink-0">
-                    <i data-lucide="arrow-down-circle" class="w-6 h-6"></i>
-                </div>
-                <div class="min-w-0">
-                    <p class="text-[11px] sm:text-xs font-semibold text-slate-500 uppercase tracking-wider truncate">Total Input (Masuk)</p>
-                    <h2 id="statInput" class="text-xl sm:text-2xl font-extrabold text-blue-600 mt-0.5">+0</h2>
-                    <p class="text-[11px] text-slate-400 mt-0.5 truncate">Unit masuk periode ini</p>
-                </div>
-            </div>
-
-            <!-- 3. Total Unit Output (Keluar) -->
-            <div class="bg-white p-4 sm:p-5 rounded-2xl shadow-sm border border-slate-200/80 flex items-center gap-3.5">
-                <div class="bg-amber-50 text-amber-600 p-3 rounded-2xl shrink-0">
-                    <i data-lucide="arrow-up-circle" class="w-6 h-6"></i>
-                </div>
-                <div class="min-w-0">
-                    <p class="text-[11px] sm:text-xs font-semibold text-slate-500 uppercase tracking-wider truncate">Total Output (Keluar)</p>
-                    <h2 id="statOutput" class="text-xl sm:text-2xl font-extrabold text-amber-600 mt-0.5">-0</h2>
-                    <p class="text-[11px] text-slate-400 mt-0.5 truncate">Unit keluar periode ini</p>
-                </div>
-            </div>
-
-            <!-- 4. Total Unit Tersedia Saat Ini -->
-            <div class="bg-white p-4 sm:p-5 rounded-2xl shadow-sm border border-slate-200/80 flex items-center gap-3.5">
-                <div class="bg-emerald-50 text-emerald-600 p-3 rounded-2xl shrink-0">
-                    <i data-lucide="package-check" class="w-6 h-6"></i>
-                </div>
-                <div class="min-w-0">
-                    <p class="text-[11px] sm:text-xs font-semibold text-slate-500 uppercase tracking-wider truncate">Unit Tersedia</p>
-                    <h2 id="statTersedia" class="text-xl sm:text-2xl font-extrabold text-emerald-600 mt-0.5">0 Unit</h2>
-                    <p class="text-[11px] text-slate-400 mt-0.5 truncate">Sisa stok siap pakai</p>
-                </div>
-            </div>
-        </section>
-
-        <!-- Pencarian & Daftar Barang/Mesin -->
-        <section class="bg-white rounded-2xl shadow-sm border border-slate-200/80 overflow-hidden">
-            <div class="p-4 sm:p-5 border-b border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                <div>
-                    <h3 class="font-bold text-slate-800 text-base">Daftar Stok Unit Mesin & Komponen</h3>
-                    <p id="subtitlePeriode" class="text-xs text-slate-500 mt-0.5">Menampilkan data bulan terpilih</p>
-                </div>
-                <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full sm:w-auto">
-                    <div class="relative flex-1 sm:w-64">
-                        <i data-lucide="search" class="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2"></i>
-                        <input type="text" id="searchInput" oninput="renderDashboard()" placeholder="Cari nama, kode/SN, kategori..." class="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-sm focus:ring-blue-500 focus:border-blue-500">
-                    </div>
-                    <select id="filterKategori" onchange="renderDashboard()" class="bg-slate-50 border border-slate-300 text-slate-700 text-sm rounded-xl p-2 focus:ring-blue-500 focus:border-blue-500">
-                        <option value="ALL">Semua Kategori</option>
-                        <option value="Mesin Produksi">Mesin Produksi</option>
-                        <option value="Mesin Bengkel / Las">Mesin Bengkel / Las</option>
-                        <option value="Alat Berat / Pompa">Alat Berat / Pompa</option>
-                        <option value="Sparepart & Komponen">Sparepart & Komponen</option>
-                        <option value="Alat Ukur & Elektrikal">Alat Ukur & Elektrikal</option>
-                    </select>
-                </div>
-            </div>
-
-            <!-- Tampilan Kartu Mobile (Layar HP < md) -->
-            <div id="mobileCardList" class="md:hidden divide-y divide-slate-100">
-                <!-- Kartu mobile dirender via JS -->
-            </div>
-
-            <!-- Tabel Desktop (Layar >= md) -->
-            <div class="hidden md:block overflow-x-auto">
-                <table class="w-full text-left border-collapse">
-                    <thead>
-                        <tr class="bg-slate-50/80 border-b border-slate-200 text-xs font-semibold text-slate-500 uppercase tracking-wider">
-                            <th class="py-3.5 px-4">Foto</th>
-                            <th class="py-3.5 px-4">Tanggal Update</th>
-                            <th class="py-3.5 px-4">Kode / SN</th>
-                            <th class="py-3.5 px-4">Nama Mesin & Kategori</th>
-                            <th class="py-3.5 px-4 text-center">Stok Awal</th>
-                            <th class="py-3.5 px-4 text-center text-blue-600">Input (+)</th>
-                            <th class="py-3.5 px-4 text-center text-amber-600">Output (-)</th>
-                            <th class="py-3.5 px-4 text-center">Unit Tersedia</th>
-                            <th class="py-3.5 px-4 text-center">Transaksi Cepat</th>
-                            <th class="py-3.5 px-4 text-center">Aksi</th>
-                        </tr>
-                    </thead>
-                    <tbody id="tableBody" class="divide-y divide-slate-100 text-sm">
-                        <!-- Baris data dirender lewat JS -->
-                    </tbody>
-                </table>
-            </div>
-
-            <!-- State Kosong -->
-            <div id="emptyState" class="hidden py-12 px-4 text-center">
-                <div class="bg-slate-100 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-3 text-slate-400">
-                    <i data-lucide="inbox" class="w-8 h-8"></i>
-                </div>
-                <h4 class="font-semibold text-slate-700">Belum ada data mesin pada periode ini</h4>
-                <p class="text-xs text-slate-500 max-w-sm mx-auto mt-1">Gunakan tombol "Input Barang / Scan" untuk memotret mesin atau memindai barcode secara langsung.</p>
-                <button onclick="openInputModal()" class="mt-4 bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold px-4 py-2.5 rounded-xl inline-flex items-center gap-2">
-                    <i data-lucide="plus" class="w-4 h-4"></i>
-                    <span>Tambah Data Sekarang</span>
-                </button>
-            </div>
-        </section>
-    </main>
-
-    <!-- Footer -->
-    <footer class="bg-white border-t border-slate-200 py-4 px-4 text-center text-xs text-slate-500">
-        Data tersimpan otomatis secara lokal di browser perangkat Anda • Siap ekspor ke Microsoft Excel (.xlsx)
-    </footer>
-
-    <!-- ===================================================================== -->
-    <!-- MODAL INPUT / EDIT BARANG DENGAN KAMERA HP & SCANNER BARCODE/QR      -->
-    <!-- ===================================================================== -->
-    <div id="inputModal" class="fixed inset-0 z-50 hidden bg-slate-900/70 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4 overflow-y-auto">
-        <div class="bg-white w-full max-w-xl rounded-t-3xl sm:rounded-2xl shadow-2xl overflow-hidden animate-slide-up max-h-[92vh] flex flex-col">
+            <h1 class="text-2xl font-bold text-slate-900">MarineSync SaaS</h1>
+            <p class="text-sm text-slate-500 mt-1 mb-6">Sistem Inventaris Kapal (Deck & Mesin) Multi-Perusahaan</p>
             
-            <!-- Header Modal -->
-            <div class="px-5 py-4 bg-slate-900 text-white flex items-center justify-between shrink-0">
-                <div class="flex items-center gap-2.5">
-                    <i data-lucide="scan-line" class="w-5 h-5 text-blue-400"></i>
-                    <h3 id="modalTitle" class="font-bold text-base">Input Mesin Baru (Kamera HP)</h3>
-                </div>
-                <button onclick="closeInputModal()" class="p-1.5 rounded-lg hover:bg-slate-800 text-slate-300">
-                    <i data-lucide="x" class="w-5 h-5"></i>
+            <div class="space-y-3">
+                <button onclick="simulateLogin('admin')" class="w-full flex items-center justify-center gap-3 py-3 px-4 border border-slate-300 rounded-xl hover:bg-slate-50 font-medium text-slate-700 transition shadow-sm">
+                    <img src="https://www.svgrepo.com/show/475656/google-color.svg" class="w-5 h-5">
+                    Masuk sebagai Admin Perusahaan
+                </button>
+                <button onclick="simulateLogin('crew_deck')" class="w-full flex items-center justify-center gap-3 py-3 px-4 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-medium transition shadow-md">
+                    <i class="fa-solid fa-anchor"></i>
+                    Masuk sebagai Crew Deck
+                </button>
+                <button onclick="simulateLogin('crew_engine')" class="w-full flex items-center justify-center gap-3 py-3 px-4 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-medium transition shadow-md">
+                    <i class="fa-solid fa-gears"></i>
+                    Masuk sebagai Crew Mesin
                 </button>
             </div>
+            <p class="text-xs text-slate-400 mt-6">Didukung integrasi Google Auth & Lisensi Per Kapal</p>
+        </div>
+    </div>
 
-            <!-- Isi Modal (Scrollable) -->
-            <div class="p-5 overflow-y-auto space-y-5">
-                
-                <!-- Panel Kamera HP: Tab Foto Barang vs Scan Barcode/QR -->
-                <div class="bg-slate-50 p-3.5 rounded-2xl border border-slate-200 space-y-3">
-                    <div class="flex items-center justify-between">
-                        <span class="text-xs font-bold uppercase tracking-wider text-slate-600 flex items-center gap-1.5">
-                            <i data-lucide="smartphone" class="w-4 h-4 text-blue-600"></i>
-                            Fitur Kamera HP
-                        </span>
-                        <div class="flex gap-1.5">
-                            <button type="button" onclick="triggerPhotoCapture()" class="bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold px-3 py-1.5 rounded-lg flex items-center gap-1.5 shadow-sm">
-                                <i data-lucide="camera" class="w-3.5 h-3.5"></i>
-                                <span>Foto Barang</span>
-                            </button>
-                            <button type="button" id="btnToggleScanner" onclick="toggleBarcodeScanner()" class="bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold px-3 py-1.5 rounded-lg flex items-center gap-1.5 shadow-sm">
-                                <i data-lucide="qr-code" class="w-3.5 h-3.5"></i>
-                                <span id="textToggleScanner">Scan Barcode/QR</span>
-                            </button>
-                        </div>
-                    </div>
-
-                    <!-- Input File Tersembunyi untuk Kamera HP Langsung -->
-                    <input type="file" id="cameraPhotoInput" accept="image/*" capture="environment" class="hidden" onchange="handlePhotoSelected(event)">
-
-                    <!-- Area Live Barcode / QR Scanner -->
-                    <div id="scannerContainer" class="hidden space-y-2">
-                        <div id="qr-reader" class="w-full overflow-hidden rounded-xl border border-indigo-200 bg-black"></div>
-                        <p class="text-[11px] text-center text-slate-500">Arahkan kamera HP ke Barcode atau QR Code mesin untuk mengisi Kode/SN otomatis.</p>
-                    </div>
-
-                    <!-- Preview Foto Barang yang Diambil -->
-                    <div id="photoPreviewContainer" class="flex items-center gap-3 bg-white p-2.5 rounded-xl border border-slate-200">
-                        <img id="photoPreviewImg" src="https://placehold.co/120x120/e2e8f0/64748b?text=Foto+Mesin" alt="Preview Mesin" class="w-16 h-16 rounded-lg object-cover border border-slate-200 shrink-0">
-                        <div class="flex-1 min-w-0">
-                            <p id="photoStatusText" class="text-xs font-medium text-slate-700 truncate">Belum ada foto diambil</p>
-                            <p class="text-[11px] text-slate-400">Foto otomatis dikompres agar hemat memori & siap tampil di laporan.</p>
-                            <button type="button" id="btnRemovePhoto" onclick="removePhoto()" class="hidden mt-1 text-[11px] text-red-600 font-semibold hover:underline">Hapus Foto</button>
-                        </div>
-                    </div>
-                    <!-- Tanggal Update -->
-                        <div>
-                            <label class="block text-xs font-semibold text-slate-700 mb-1">Tanggal Update *</label>
-                            <input type="date" id="inputTanggal" required class="w-full bg-white border border-slate-300 rounded-xl px-3 py-2.5 text-sm focus:ring-blue-500 focus:border-blue-500">
-                        </div>
-                    </div>
-
-                    <!-- Nama Barang / Mesin -->
+    <!-- ================= 2. DASHBOARD UTAMA ================= -->
+    <div id="appContainer" class="hidden flex-1 flex flex-col">
+        <!-- Header -->
+        <header id="appHeader" class="theme-bg text-white shadow-md sticky top-0 z-30 transition-all">
+            <div class="max-w-7xl mx-auto px-4 py-3 flex justify-between items-center">
+                <div class="flex items-center gap-3">
+                    <div id="companyLogoBadge" class="w-10 h-10 bg-white/10 rounded-lg flex items-center justify-center text-xl font-bold">MS</div>
                     <div>
-                        <label class="block text-xs font-semibold text-slate-700 mb-1">Nama Barang / Mesin *</label>
-                        <input type="text" id="inputNama" required placeholder="Contoh: Mesin Bubut CNC Mini / Kompresor 2HP" class="w-full bg-white border border-slate-300 rounded-xl px-3 py-2.5 text-sm focus:ring-blue-500 focus:border-blue-500">
+                        <h2 id="headerCompanyName" class="font-bold text-lg leading-tight">PT. Samudera Makmur Sejahtera</h2>
+                        <p id="headerVesselName" class="text-xs text-blue-200">KM. Nusantara Jaya 01 (IMO: 9482710)</p>
+                    </div>
+                </div>
+                <div class="flex items-center gap-3">
+                    <span id="userRoleBadge" class="px-3 py-1 bg-white/20 rounded-full text-xs font-semibold">Admin</span>
+                    <button onclick="logout()" class="p-2 hover:bg-white/10 rounded-lg text-sm" title="Keluar"><i class="fa-solid fa-power-off"></i></button>
+                </div>
+            </div>
+        </header>
+
+        <!-- Navigasi Menu & Tab Departemen -->
+        <nav class="bg-white border-b border-slate-200 shadow-xs">
+            <div class="max-w-7xl mx-auto px-4 flex justify-between items-center overflow-x-auto">
+                <div class="flex gap-2 py-2">
+                    <button onclick="switchTab('inventory')" id="nav-inventory" class="px-4 py-2 rounded-lg font-medium text-sm bg-blue-50 text-blue-600 transition"><i class="fa-solid fa-boxes-stacked mr-2"></i>Stok</button>
+                    <button onclick="switchTab('scanner')" id="nav-scanner" class="px-4 py-2 rounded-lg font-medium text-sm text-slate-600 hover:bg-slate-100 transition"><i class="fa-solid fa-barcode mr-2"></i>Scan Pintar</button>
+                    <button onclick="switchTab('settings')" id="nav-settings" class="px-4 py-2 rounded-lg font-medium text-sm text-slate-600 hover:bg-slate-100 transition"><i class="fa-solid fa-gear mr-2"></i>Setting Excel & Tema</button>
+                    <button onclick="switchTab('billing')" id="nav-billing" class="px-4 py-2 rounded-lg font-medium text-sm text-slate-600 hover:bg-slate-100 transition"><i class="fa-solid fa-wallet mr-2"></i>Sewa SaaS</button>
+                </div>
+                <!-- Pemilih Departemen Deck / Mesin -->
+                <div class="flex bg-slate-100 p-1 rounded-xl">
+                    <button onclick="switchDept('DECK')" id="dept-deck" class="px-3 py-1.5 text-xs font-bold rounded-lg bg-white shadow-xs text-slate-800 transition">DECK</button>
+                    <button onclick="switchDept('ENGINE')" id="dept-engine" class="px-3 py-1.5 text-xs font-bold rounded-lg text-slate-500 transition">MESIN</button>
+                </div>
+            </div>
+        </nav>
+
+        <!-- Konten Utama -->
+        <main class="max-w-7xl mx-auto px-4 py-6 flex-1 w-full space-y-6">
+
+            <!-- TAB 1: INVENTORY -->
+            <section id="tab-inventory" class="space-y-4">
+                <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white p-4 rounded-2xl shadow-xs border border-slate-100">
+                    <div>
+                        <h3 class="font-bold text-lg text-slate-800">Inventaris Departemen: <span id="currentDeptLabel" class="text-blue-600">DECK</span></h3>
+                        <p class="text-xs text-slate-500">Kelola stok barang masuk dan keluar dengan deteksi dus otomatis.</p>
+                    </div>
+                    <div class="flex gap-2 w-full sm:w-auto">
+                        <button onclick="exportToExcel()" class="flex-1 sm:flex-none bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2.5 rounded-xl font-medium text-sm shadow-md transition flex items-center justify-center gap-2">
+                            <i class="fa-solid fa-file-excel"></i> Download Excel (.xlsx)
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Tabel Data -->
+                <div class="bg-white rounded-2xl shadow-xs border border-slate-100 overflow-hidden">
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left border-collapse">
+                            <thead>
+                                <tr class="bg-slate-50 text-slate-500 text-xs uppercase tracking-wider border-b border-slate-200">
+                                    <th class="p-4">Kode / Barcode</th>
+                                    <th class="p-4">Nama Barang</th>
+                                    <th class="p-4">Departemen</th>
+                                    <th class="p-4 text-center">Qty / Dus</th>
+                                    <th class="p-4 text-center">Total Satuan</th>
+                                    <th class="p-4 text-right">Aksi</th>
+                                </tr>
+                            </thead>
+                            <tbody id="inventoryTableBody" class="divide-y divide-slate-100 text-sm">
+                                <!-- Data Dirender via JS -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <!-- TAB 2: SMART SCANNER (AI DUS DETECTOR) -->
+            <section id="tab-scanner" class="hidden space-y-4">
+                <div class="bg-white p-6 rounded-2xl shadow-xs border border-slate-100 max-w-xl mx-auto text-center space-y-4">
+                    <div class="w-16 h-16 bg-blue-50 rounded-full flex items-center justify-center mx-auto text-blue-600 text-2xl">
+                        <i class="fa-solid fa-barcode"></i>
+                    </div>
+                    <h3 class="text-xl font-bold text-slate-800">Scanner & AI Deteksi Dus</h3>
+                    <p class="text-sm text-slate-500">Scan barcode kemasan pabrik atau masukkan kode untuk deteksi otomatis jumlah per dus atau satuan.</p>
+                    
+                    <div class="space-y-3 text-left">
+                        <label class="block text-xs font-bold text-slate-600 uppercase">Simulasi Scan Barcode / Ketik Kode:</label>
+                        <div class="flex gap-2">
+                            <input type="text" id="scanInput" placeholder="Contoh: BOX-TALI-MANILA-24" class="flex-1 px-4 py-3 border border-slate-300 rounded-xl text-sm focus:outline-blue-600">
+                            <button onclick="processScan()" class="accent-bg text-white px-6 py-3 rounded-xl font-semibold text-sm shadow-md">Proses</button>
+                        </div>
                     </div>
 
-                    <!-- Kategori -->
-                    <div>
-                        <label class="block text-xs font-semibold text-slate-700 mb-1">Kategori Mesin *</label>
-                        <select id="inputKategori" required class="w-full bg-white border border-slate-300 rounded-xl px-3 py-2.5 text-sm focus:ring-blue-500 focus:border-blue-500">
-                            <option value="Mesin Produksi">Mesin Produksi</option>
-                            <option 
+                    <div id="scanResultCard" class="hidden p-4 bg-slate-50 rounded-xl border border-slate-200 text-left space-y-2">
+                        <div class="flex justify-between items-center">
+                            <span class="text-xs font-bold px-2 py-1 bg-emerald-100 text-emerald-700 rounded" id="resStatus">Terdeteksi Dus</span>
+                            <span class="text-xs text-slate-400" id="resCode">CODE-001</span>
+                        </div>
+                        <h4 class="font-bold text-slate-800" id="resItemName">Tali Manila 20mm</h4>
+                        <p class="text-xs text-slate-600" id="resDetail">AI mendeteksi keterangan kemasan: 1 Dus = 24 Pcs</p>
+                        <button onclick="addItemFromScan()" class="w-full mt-2 bg-slate-900 text-white py-2 rounded-lg text-xs font-semibold">Masukkan ke Inventaris</button>
+                    </div>
+                </div>
+            </section>
+
+            <!-- TAB 3: SETTING EXEL & WHITE-LABEL -->
+            <section id="tab-settings" class="hidden space-y-6">
+                <div class="bg-white p-6 rounded-2xl shadow-xs border border-slate-100 space-y-6">
+                    <h3 class="text-xl font-bold text-slate-800">Pengaturan Aplikasi & Format Excel</h3>
+                    
+                    <!-- White Label Tema Warna -->
+                    <div class="space-y-3">
+                        <label class="block text-sm font-bold text-slate-700">Pilih Palet Tema Warna Website</label>
+                        <div class="grid grid-cols-4 sm:grid-cols-8 gap-3">
+                            <button onclick="setTheme('#1e3a8a', '#3b82f6')" class="h-10 rounded-xl bg-blue-900 border-2 border-slate-300 shadow-xs"></button>
+                            <button onclick="setTheme('#0f766e', '#14b8a6')" class="h-10 rounded-xl bg-teal-700 border-2 border-slate-300 shadow-xs"></button>
+                            <button onclick="setTheme('#b91c1c', '#ef4444')" class="h-10 rounded-xl bg-red-700 border-2 border-slate-300 shadow-xs"></button>
+                            <button onclick="setTheme('#047857', '#10b981')" class="h-10 rounded-xl bg-emerald-700 border-2 border-slate-300 shadow-xs"></button>
+                            <button onclick="setTheme('#c2410c', '#f97316')" class="h-10 rounded-xl bg-orange-700 border-2 border-slate-300 shadow-xs"></button>
+                            <button onclick="setTheme('#6b21a8', '#a855f7')" class="h-10 rounded-xl bg-purple-800 border-2 border-slate-300 shadow-xs"></button>
+                            <button onclick="setTheme('#334155', '#64748b')" class="h-10 rounded-xl bg-slate-700 border-2 border-slate-300 shadow-xs"></button>
+                            <button onclick="setTheme('#000000', '#333333')" class="h-10 rounded-xl bg-black border-2 border-slate-300 shadow-xs"></button>
+                        </div>
+                    </div>
+
+                    <!-- AI Logo Finder & Nama Perusahaan -->
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div class="space-y-2">
+                            <label class="block text-sm font-bold text-slate-700">Nama Perusahaan / Kapal</label>
+                            <input type="text" id="inputCompanyName" value="PT. Samudera Makmur Sejahtera" class="w-full px-4 py-2.5 border border-slate-300 rounded-xl text-sm">
+                        </div>
+                        <div class="space-y-2">
+                            <label class="block text-sm font-bold text-slate-700">AI Logo Finder (Cari Logo Otomatis)</label>
+                            <div class="flex gap-2">
+                                <input type="text" id="inputAiQuery" placeholder="Ketik nama brand..." class="flex-1 px-4 py-2.5 border border-slate-300 rounded-xl text-sm">
+                                <button onclick="runAiLogoFinder()" class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2.5 rounded-xl text-sm font-semibold">Cari AI</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Setting Excel Header & TTD -->
+                    <div class="border-t border-slate-100 pt-4 space-y-4">
+                        <h4 class="font-bold text-slate-800 text-sm">Format Kertas & Kolom TTD Excel</h4>
+                        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                            <div>
+                                <label class="block text-xs font-medium text-slate-600 mb-1">Ukuran Kertas</label>
+                                <select id="settingPaper" class="w-full px-3 py-2 border border-slate-300 rounded-xl text-sm">
+                                    <option>A4 Portrait</option>
+                                    <option>F4 / Folio Portrait</option>
+                                    <option>A4 Landscape</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block
